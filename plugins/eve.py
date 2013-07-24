@@ -8,15 +8,23 @@ def db_init(db):
     db.execute("create table if not exists EveKey(nick, keyID, vCode, character, primary key(nick, character))")
     db.commit()
 
+def db_corp_init(db):
+    db.execute("create table if not exists CorpKey(nick primary key, keyID, vCode, corpname)")
+    db.commit()
+
+########
+######## Character
+########
+
 @hook.command
 def eveAdd(inp, nick='', chan='', db=None, input=None):
-    ".keyAdd <KeyID> <vCode> <irc_nick> <Character Name>"
+    ".eveAdd <KeyID> <vCode> <irc_nick> <Character Name>"
 
     datas = inp.split()
 
-    if len(datas) < 4:
+    if len(datas) < 3:
         return """Arguments missing:
-        Usage: .keyAdd <KeyID> <vCode> <irc_nick> <Character Name>"""
+        Usage: .eveAdd <KeyID> <vCode> <irc_nick> <Character Name>"""
 
     db.execute("create table if not exists EveKey(nick primary key, keyID, vCode, character)")
 
@@ -41,27 +49,24 @@ def eveAdd(inp, nick='', chan='', db=None, input=None):
         return 'No character found'
     return "WTF ?!"
 
-@hook.command
+@hook.command(autohelp=False)
 def eveDel(inp, nick='', chan='', db=None, say=None, input=None):
-    ".keyDel <Character Name>"
+    ".eveDel"
 
     db_init(db)
-
-    res=evesurvey.get_apiID_by_character(db, inp)
-    if res == None:
-        say("No entry for %s" % inp)
-
-    if res[0] == nick.lower():
-        db.execute("delete from EveKey where nick=lower(?) and character=lower(?)", (nick, inp))
-        db.commit()
-        say("Entry %s deleted" % inp)
-    return "Nothing to delete"
+    db.execute("delete from EveKey where nick=lower(?)", (nick,))
+    db.commit()
+    say("%s's Character entry deleted" % nick)
 
 @hook.command(autohelp=False)
 def isk(inp, nick='', chan='', db=None, say=None, input=None):
-    ".isk [Character Name]"
+    ".isk [Nick]"
     db_init(db)
     locale.setlocale(locale.LC_ALL, '')
+    if not inp:
+        pass
+    else:
+        nick = inp
     try:
         res=evesurvey.get_apiID_by_nick(db, nick)
         if res == None:
@@ -81,8 +86,12 @@ def isk(inp, nick='', chan='', db=None, say=None, input=None):
 
 @hook.command(autohelp=False)
 def eta(inp, nick='', chan='', db=None, say=None, input=None):
-    ".eta"
+    ".eta [Nick]"
     db_init(db)
+    if not inp:
+        pass
+    else:
+        nick = inp
     try:
         res=evesurvey.get_apiID_by_nick(db, nick)
         if res == None:
@@ -107,8 +116,12 @@ def eta(inp, nick='', chan='', db=None, say=None, input=None):
 
 @hook.command(autohelp=False)
 def next(inp, nick='', chan='', db=None, say=None, input=None):
-    ".next"
+    ".next [Nick]"
     db_init(db)
+    if not inp:
+        pass
+    else:
+        nick = inp
     try:
         res=evesurvey.get_apiID_by_nick(db, nick)
         if res == None:
@@ -132,10 +145,12 @@ def next(inp, nick='', chan='', db=None, say=None, input=None):
 
 @hook.command(autohelp=False)
 def queue(inp, nick='', chan='', db=None, say=None, input=None):
-    ".queue"
+    ".queue [nick]"
     db_init(db)
-    if nick.lower() == "captain_fake":
-        return "Queue not found."
+    if not inp:
+        pass
+    else:
+        nick = inp
     try:
         res=evesurvey.get_apiID_by_nick(db, nick)
         if res == None:
@@ -157,8 +172,73 @@ def queue(inp, nick='', chan='', db=None, say=None, input=None):
             return "No skill in queue."
         print snk
         t, d=evesurvey.sectostr(time.time(), qEnd)
-        msg = "%s: Skill in queue: %s (finish in %s)" % (charName.title(), snk, t)
+        msg = "%s: Skill in queue: %s (finish in %s, %s)" % (charName.title(), snk, t, d)
         say(msg)
     except RuntimeError as e:
         return "Error: ", e.message
 
+
+#########
+######### Corporation
+#########
+
+@hook.command
+def corpAdd(inp, nick='', chan='', db=None, input=None):
+    ".corpAdd <KeyID> <vCode> <irc_nick> <Character Name>"
+
+    datas = inp.split()
+
+    if len(datas) < 3:
+        return """Arguments missing:
+        Usage: .corpAdd <KeyID> <vCode> <irc_nick> <Corporation Name>"""
+
+    db_corp_init(db)
+
+    key=datas[0]
+    vcode=datas[1]
+    nick=datas[2]
+    corp=' '.join(datas[3:])
+
+    api = eveapi.EVEAPIConnection()
+    auth = api.auth(keyID=key, vCode=vcode)
+
+    characters = auth.account.Characters()
+    if not characters:
+        return 'No character found'
+    db.execute("insert or replace into CorpKey(nick, keyID, vCode, corpname) values (?,?,?,?)",
+               (nick.lower(), key, vcode, corp.lower()))
+    db.commit()
+    return 'Corporation %s added to database and linked to %s' % (corp.title(), nick)
+
+@hook.command(autohelp=False)
+def corpDel(inp, nick='', chan='', db=None, say=None, input=None):
+    ".corpDel"
+
+    db_corp_init(db)
+    db.execute("delete from CorpKey where nick=lower(?)", (nick,))
+    db.commit()
+    say("Entry %s deleted" % nick)
+
+@hook.command(autohelp=False)
+def corp(inp, nick='', chan='', db=None, say=None, input=None):
+    ".corp [isk]"
+    db_corp_init(db)
+    locale.setlocale(locale.LC_ALL, '')
+    # if not inp:
+    #     return ".corp isk"
+    try:
+        res=evesurvey.get_corp_apiID_by_nick(db, nick)
+        if res == None:
+            return "No entry found. Please use .corpadd"
+        keyID, vCode, corpName = res
+        api, auth, cid=evesurvey.get_characterID(keyID, vCode)
+        if cid == None:
+            return "No character found"
+        wallet = auth.corp.AccountBalance(characterID=cid)
+        isk = wallet.accounts[0].balance
+        if isk:
+            say("%s has %s ISK in Master Wallet." % (corpName.title(), locale.format('%.2f', isk, True)))
+        else:
+            say("No corporation found.")
+    except RuntimeError as e:
+        return "Error: ", e.message

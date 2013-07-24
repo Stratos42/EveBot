@@ -24,14 +24,25 @@ def get_apiID_by_character(db, char):
     else:
         return None
 
-def get_characterID(keyID, vCode, charName):
+def get_corp_apiID_by_nick(db, nick):
+    row = db.execute("select keyID, vCode, corpname from CorpKey where nick=?",
+                      (nick.lower(),)).fetchall()
+    if row:
+        return row[0]
+    else:
+        return None
+
+def get_characterID(keyID, vCode, charName=None):
     api = eveapi.EVEAPIConnection()
     auth = api.auth(keyID=keyID, vCode=vCode)
     result = auth.account.Characters()
     cid=None
-    for char in result.characters:
-        if charName == char.name.lower():
-            cid=char.characterID
+    if charName == None:
+        cid=result.characters[0].characterID
+    else:
+        for char in result.characters:
+            if charName == char.name.lower():
+                cid=char.characterID
     return api, auth, cid
 
 def sectostr(start, end):
