@@ -12,3 +12,11 @@ def get_db_connection(conn, name=''):
     return sqlite3.connect(filename, timeout=10)
 
 bot.get_db_connection = get_db_connection
+
+def get_db_by_name(name):
+    "returns an sqlite3 connection to a persistent database"
+
+    filename = os.path.join(bot.persist_dir, name)
+    return sqlite3.connect(filename, timeout=10)
+
+bot.get_db_by_name = get_db_by_name

@@ -1,9 +1,7 @@
 import thread
 import traceback
 
-
 thread.stack_size(1024 * 512)  # reduce vm size
-
 
 class Input(dict):
     def __init__(self, conn, raw, prefix, command, params,
@@ -101,7 +99,6 @@ class Handler(object):
                     db = bot.get_db_connection(input.conn)
                     db_conns[input.conn] = db
                 input.db = db
-
             try:
                 run(self.func, input)
             except:
@@ -149,7 +146,6 @@ def match_command(command):
         return prefix
 
     return command
-
 
 def main(conn, out):
     inp = Input(conn, *out)
