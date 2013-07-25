@@ -2,7 +2,7 @@ from util import hook, http, timesince
 import eveapi
 import locale
 import time, datetime
-import evesurvey
+import evemisc
 
 def db_init(db):
     db.execute("create table if not exists EveKey(nick, keyID, vCode, character, primary key(nick, character))")
@@ -68,11 +68,11 @@ def isk(inp, nick='', chan='', db=None, say=None, input=None):
     else:
         nick = inp
     try:
-        res=evesurvey.get_apiID_by_nick(db, nick)
+        res=evemisc.get_apiID_by_nick(db, nick)
         if res == None:
             return "No entry found. Please use .eveadd"
         keyID, vCode, charName = res
-        api, auth, cid=evesurvey.get_characterID(keyID, vCode, charName)
+        api, auth, cid=evemisc.get_characterID(keyID, vCode, charName)
         if cid == None:
             return "No character found"
         wallet = auth.char.AccountBalance(characterID=cid)
@@ -93,11 +93,11 @@ def eta(inp, nick='', chan='', db=None, say=None, input=None):
     else:
         nick = inp
     try:
-        res=evesurvey.get_apiID_by_nick(db, nick)
+        res=evemisc.get_apiID_by_nick(db, nick)
         if res == None:
             return "No entry found. Please use .eveadd"
         keyID, vCode, charName = res
-        api, auth, cid=evesurvey.get_characterID(keyID, vCode, charName)
+        api, auth, cid=evemisc.get_characterID(keyID, vCode, charName)
         if cid == None:
             return "No character found"
         skill = auth.char.SkillInTraining(characterID=cid)
@@ -107,7 +107,7 @@ def eta(inp, nick='', chan='', db=None, say=None, input=None):
             print "Skill in training"
             s=api.eve.TypeName(ids=skill.trainingTypeID)
             skillName=s.types[0].typeName
-            t, d=evesurvey.sectostr(time.time(), skill.trainingEndTime)
+            t, d=evemisc.sectostr(time.time(), skill.trainingEndTime)
             msg = "%s: Currently training '%s' to lvl %d (finish in %s, %s)" \
                   % (charName.title(), skillName, skill.trainingToLevel, t, d)
             say(msg)
@@ -123,18 +123,18 @@ def next(inp, nick='', chan='', db=None, say=None, input=None):
     else:
         nick = inp
     try:
-        res=evesurvey.get_apiID_by_nick(db, nick)
+        res=evemisc.get_apiID_by_nick(db, nick)
         if res == None:
             return "No entry found. Please use .eveadd"
         keyID, vCode, charName = res
-        api, auth, cid=evesurvey.get_characterID(keyID, vCode, charName)
+        api, auth, cid=evemisc.get_characterID(keyID, vCode, charName)
         if cid == None:
             return "No character found"
         queue = auth.char.SkillQueue(characterID=cid).skillqueue
         if len(queue) > 1:
             s=api.eve.TypeName(ids=queue[1].typeID)
             skillName=s.types[0].typeName
-            t, d=evesurvey.sectostr(time.time(), queue[1].endTime)
+            t, d=evemisc.sectostr(time.time(), queue[1].endTime)
             msg = "%s: Next skill in queue '%s' to lvl %d (finish in %s, %s)" \
                   % (charName.title(), skillName, queue[0].level, t, d)
             say(msg)
@@ -152,11 +152,11 @@ def queue(inp, nick='', chan='', db=None, say=None, input=None):
     else:
         nick = inp
     try:
-        res=evesurvey.get_apiID_by_nick(db, nick)
+        res=evemisc.get_apiID_by_nick(db, nick)
         if res == None:
             return "No entry found. Please use .eveadd"
         keyID, vCode, charName = res
-        api, auth, cid=evesurvey.get_characterID(keyID, vCode, charName)
+        api, auth, cid=evemisc.get_characterID(keyID, vCode, charName)
         if cid == None:
             return "No character found"
         queue = auth.char.SkillQueue(characterID=cid).skillqueue
@@ -171,7 +171,7 @@ def queue(inp, nick='', chan='', db=None, say=None, input=None):
         else:
             return "No skill in queue."
         print snk
-        t, d=evesurvey.sectostr(time.time(), qEnd)
+        t, d=evemisc.sectostr(time.time(), qEnd)
         msg = "%s: Skill in queue: %s (finish in %s, %s)" % (charName.title(), snk, t, d)
         say(msg)
     except RuntimeError as e:
@@ -186,11 +186,11 @@ def market(inp, nick='', chan='', db=None, say=None, input=None):
     else:
         nick = inp
     try:
-        res=evesurvey.get_apiID_by_nick(db, nick)
+        res=evemisc.get_apiID_by_nick(db, nick)
         if res == None:
             return "No entry found. Please use .eveadd"
         keyID, vCode, charName = res
-        api, auth, cid=evesurvey.get_characterID(keyID, vCode, charName)
+        api, auth, cid=evemisc.get_characterID(keyID, vCode, charName)
         if cid == None:
             return "No character found"
         orders = auth.char.MarketOrders(characterID=cid).orders
@@ -200,11 +200,11 @@ def market(inp, nick='', chan='', db=None, say=None, input=None):
             msg=""
             for order in orders:
                 if order.orderState == 0:
-                    name=evesurvey.get_name_from_id(api, order.typeID)
+                    name=evemisc.get_name_from_id(api, order.typeID)
                     price=order.price
                     startVol=order.volEntered
                     currentVol=order.volRemaining
-                    # t, d=evesurvey.sectostr(time.time(), skill.trainingEndTime)
+                    # t, d=evemisc.sectostr(time.time(), skill.trainingEndTime)
                     if order.bid == 1:
                         msg = "[Buy %d unit of %s for %.2f ISK] %s" % (startVol, name, price, msg)
                     else:
@@ -215,7 +215,7 @@ def market(inp, nick='', chan='', db=None, say=None, input=None):
 
 def update_skill(en, db, create=False):
     nick, key, code, char = en
-    api, auth, cid = evesurvey.get_characterID(key, code, char)
+    api, auth, cid = evemisc.get_characterID(key, code, char)
     skill = auth.char.SkillInTraining(characterID=cid)
     if cid == None:
         return 1
@@ -252,7 +252,7 @@ def notif(inp, nick='', chan='', db=None, say=None, input=None):
             row = db.execute("select nick, skill, time, level, character from EveSurvey where 1").fetchall()
             for en in row:
                 n, skill, end, level, character=en
-                print("Next alert for %s: %s (finish in %s)" % (n, skill, evesurvey.sectostr(now, end)))
+                print("Next alert for %s: %s (finish in %s)" % (n, skill, evemisc.sectostr(now, end)))
             say("Check OK")
         if inp == "init":
             db.execute("drop table if exists EveSurvey")
@@ -280,7 +280,7 @@ def alert(inp, nick='', chan='', db=None, say=None, input=None):
                 for en in row:
                     n, skill, end, level, character, boo=en
                     if end <= now:
-                        t, d=evesurvey.sectostr(end, now)
+                        t, d=evemisc.sectostr(end, now)
                         msg = "%s: Your character %s has finished to train '%s' to lvl %d (since %s)" % (n.title(), character.title(), skill, level, t)
                         if boo == 0:
                             say(msg)
@@ -344,11 +344,11 @@ def corp(inp, nick='', chan='', db=None, say=None, input=None):
     # if not inp:
     #     return ".corp isk"
     try:
-        res=evesurvey.get_corp_apiID_by_nick(db, nick)
+        res=evemisc.get_corp_apiID_by_nick(db, nick)
         if res == None:
             return "No entry found. Please use .corpadd"
         keyID, vCode, corpName = res
-        api, auth, cid=evesurvey.get_characterID(keyID, vCode)
+        api, auth, cid=evemisc.get_characterID(keyID, vCode)
         if cid == None:
             return "No character found"
         wallet = auth.corp.AccountBalance(characterID=cid)

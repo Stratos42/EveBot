@@ -47,5 +47,5 @@ Only one character by nick is allowed.
 
 ## Todo
 - [x] Add Corporation command
-- [ ] Improve Notifier daemon (rebuild connection loop)
+- [ ] Improve Notifier daemon (rebuild connection loop) - very ugly actually...
 - [ ] Multi character by nick

@@ -4,7 +4,6 @@ import os
 import Queue
 import sys
 import time
-import evesurvey
 
 sys.path += ['plugins']  # so 'import hook' works without duplication
 sys.path += ['lib']
@@ -48,7 +47,6 @@ if not os.path.exists(bot.persist_dir):
     os.mkdir(bot.persist_dir)
 
 print 'Running main loop'
-#db = get_db_by_name("Eve.irc.rizon.net.db")
 
 while True:
     reload()  # these functions only do things
@@ -61,5 +59,4 @@ while True:
         except Queue.Empty:
             pass
     while all(conn.out.empty() for conn in bot.conns.itervalues()):
-        #evesurvey.skill_survey(db)
         time.sleep(.1)
