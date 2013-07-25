@@ -3,15 +3,15 @@ EveBot
 
 IRC Bot for Eve online (Fork of Skybot: https://github.com/rmmh/skybot)
 
-# Features
+## Features
 * Multithreaded dispatch and the ability to connect to multiple networks at a time.
 * Easy plugin development with automatic reloading and a simple hooking API.
 * Plugin for Eve Online (skill training, wallet, market, ...)
 
-# Requirements
+## Requirements
 Skybot runs on Python 2.6. Many of the plugins require [[http://codespeak.net/lxml/|lxml]]. It is developed on Ubuntu 9.10 with Python 2.6.4.
 
-# Commands
+## Commands
 Only one character by nick is allowed. 
 
 ### Character
@@ -45,7 +45,7 @@ Only one character by nick is allowed.
 * .corp [isk]
   * Display the balance of master wallet
 
-# Todo
+## Todo
 - [x] Add Corporation command
 - [ ] Improve Notifier daemon (rebuild connection loop)
 - [ ] Multi character by nick
