@@ -177,6 +177,123 @@ def queue(inp, nick='', chan='', db=None, say=None, input=None):
     except RuntimeError as e:
         return "Error: ", e.message
 
+@hook.command(autohelp=False)
+def market(inp, nick='', chan='', db=None, say=None, input=None):
+    ".market [Nick]"
+    db_init(db)
+    if not inp:
+        pass
+    else:
+        nick = inp
+    try:
+        res=evesurvey.get_apiID_by_nick(db, nick)
+        if res == None:
+            return "No entry found. Please use .eveadd"
+        keyID, vCode, charName = res
+        api, auth, cid=evesurvey.get_characterID(keyID, vCode, charName)
+        if cid == None:
+            return "No character found"
+        orders = auth.char.MarketOrders(characterID=cid).orders
+        if not orders:
+            say("No market orders in training")
+        else:
+            msg=""
+            for order in orders:
+                if order.orderState == 0:
+                    name=evesurvey.get_name_from_id(api, order.typeID)
+                    price=order.price
+                    startVol=order.volEntered
+                    currentVol=order.volRemaining
+                    # t, d=evesurvey.sectostr(time.time(), skill.trainingEndTime)
+                    if order.bid == 1:
+                        msg = "[Buy %d unit of %s for %.2f ISK] %s" % (startVol, name, price, msg)
+                    else:
+                        msg = "[Sell %d/%d unit of %s for %.2f ISK] %s" % (currentVol, startVol, name, price, msg)
+            say(msg)
+    except RuntimeError as e:
+        return "Error: ", e.message
+
+def update_skill(en, db, create=False):
+    nick, key, code, char = en
+    api, auth, cid = evesurvey.get_characterID(key, code, char)
+    skill = auth.char.SkillInTraining(characterID=cid)
+    if cid == None:
+        return 1
+    skill = auth.char.SkillInTraining(characterID=cid)
+    if skill.skillInTraining == 0:
+        pass
+    else:
+        s=api.eve.TypeName(ids=skill.trainingTypeID)
+        skillName=s.types[0].typeName
+        end=skill.trainingEndTime
+        lvl=skill.trainingToLevel
+        if create == True:
+            print "create %s - %s" % (nick, char)
+            db.execute("insert into EveSurvey(nick, skill, time, level, character, bool) values (?,?,?,?,?,0)",
+                       (nick.lower(), skillName, end, lvl, char.lower()))
+        else:
+            row = db.execute("select skill, level from EveSurvey where nick=?", (nick.lower(),)).fetchall()
+            sn, ls = row[0]
+            if skillName == sn and ls == lvl:
+                db.execute("update EveSurvey set skill=?, time=?, level=?, character=?, bool=1 where nick=lower(?)",
+                           (skillName, end, lvl, char.lower(), nick))
+            else:
+                db.execute("update EveSurvey set skill=?, time=?, level=?, character=?, bool=0 where nick=lower(?)",
+                           (skillName, end, lvl, char.lower(), nick))
+        db.commit()
+    return nick, char
+
+@hook.command(autohelp=False)
+def notif(inp, nick='', chan='', db=None, say=None, input=None):
+    db_init(db)
+    try:
+        if inp == "check":
+            now = time.time()
+            row = db.execute("select nick, skill, time, level, character from EveSurvey where 1").fetchall()
+            for en in row:
+                n, skill, end, level, character=en
+                print("Next alert for %s: %s (finish in %s)" % (n, skill, evesurvey.sectostr(now, end)))
+            say("Check OK")
+        if inp == "init":
+            db.execute("drop table if exists EveSurvey")
+            db.commit()
+            db.execute("create table if not exists EveSurvey(nick primary key, skill, time, level, character, bool)")
+            db.commit()
+            row = db.execute("select nick, keyID, vCode, character from EveKey where 1").fetchall()
+            for en in row:
+                n, c =update_skill(en, db, True)
+            say("DB Updated")
+    except RuntimeError as e:
+        return "Error: ", e.message
+
+
+@hook.singlethread
+@hook.command(autohelp=False)
+def alert(inp, nick='', chan='', db=None, say=None, input=None):
+    db_init(db)
+    try:
+        if inp == "start":
+            say("Start skill notifier")
+            while True:
+                now = time.time()
+                row = db.execute("select nick, skill, time, level, character, bool from EveSurvey where 1").fetchall()
+                for en in row:
+                    n, skill, end, level, character, boo=en
+                    if end <= now:
+                        t, d=evesurvey.sectostr(end, now)
+                        msg = "%s: Your character %s has finished to train '%s' to lvl %d (since %s)" % (n.title(), character.title(), skill, level, t)
+                        if boo == 0:
+                            say(msg)
+                        msg=None
+                        row = db.execute("select nick, keyID, vCode, character from EveKey where nick=lower(?)", (n,)).fetchall()
+                        update_skill(row[0], db)
+                        break
+                time.sleep(5)
+                print ("Notifier is alive")
+            say("Stopping skill notifier...")
+    except RuntimeError as e:
+        return "Error: ", e.message
+
 
 #########
 ######### Corporation

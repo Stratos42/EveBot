@@ -45,8 +45,14 @@ def get_characterID(keyID, vCode, charName=None):
                 cid=char.characterID
     return api, auth, cid
 
+def get_name_from_id(api, typeID):
+    t=api.eve.TypeName(ids=typeID)
+    return t.types[0].typeName
+
 def sectostr(start, end):
     diff = (end - start)
+    if diff < 0:
+        diff = diff * (-1)
     sec = datetime.timedelta(seconds=diff)
     d = datetime.datetime(1,1,1) + sec
     print "DEBUG: diff=%d" % diff
