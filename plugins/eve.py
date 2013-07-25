@@ -1,16 +1,18 @@
 from util import hook, http, timesince
 import eveapi
 import locale
-import time, datetime
+import time, datetime, ssl
 import evemisc
 
 def db_init(db):
-    db.execute("create table if not exists EveKey(nick, keyID, vCode, character, primary key(nick, character))")
+    db.execute("create table if not exists EveKey(nick primary key, keyID, vCode, character)")
     db.commit()
-
-def db_corp_init(db):
     db.execute("create table if not exists CorpKey(nick primary key, keyID, vCode, corpname)")
     db.commit()
+    db.execute("create table if not exists EveSurvey(nick primary key, skill, time, level, character, bool)")
+    db.commit()
+
+global alive
 
 ########
 ######## Character
@@ -26,8 +28,7 @@ def eveAdd(inp, nick='', chan='', db=None, input=None):
         return """Arguments missing:
         Usage: .eveAdd <KeyID> <vCode> <irc_nick> <Character Name>"""
 
-    db.execute("create table if not exists EveKey(nick primary key, keyID, vCode, character)")
-
+    db_init(db)
     key=datas[0]
     vcode=datas[1]
     nick=datas[2]
@@ -81,8 +82,8 @@ def isk(inp, nick='', chan='', db=None, say=None, input=None):
             say("%s has %s ISK." % (charName.title(), locale.format('%.2f', isk, True)))
         else:
             say("No character found.")
-    except RuntimeError as e:
-        return "Error: ", e.message
+    except (RuntimeError, ssl.SSLError) as e:
+        return "Error: " + e.message
 
 @hook.command(autohelp=False)
 def eta(inp, nick='', chan='', db=None, say=None, input=None):
@@ -111,8 +112,8 @@ def eta(inp, nick='', chan='', db=None, say=None, input=None):
             msg = "%s: Currently training '%s' to lvl %d (finish in %s, %s)" \
                   % (charName.title(), skillName, skill.trainingToLevel, t, d)
             say(msg)
-    except RuntimeError as e:
-        return "Error: ", e.message
+    except (RuntimeError, ssl.SSLError) as e:
+        return "Error: " + e.message
 
 @hook.command(autohelp=False)
 def next(inp, nick='', chan='', db=None, say=None, input=None):
@@ -140,8 +141,8 @@ def next(inp, nick='', chan='', db=None, say=None, input=None):
             say(msg)
         else:
             say("No skill in queue.")
-    except RuntimeError as e:
-        return "Error: ", e.message
+    except (RuntimeError, ssl.SSLError) as e:
+        return "Error: " + e.message
 
 @hook.command(autohelp=False)
 def queue(inp, nick='', chan='', db=None, say=None, input=None):
@@ -174,8 +175,8 @@ def queue(inp, nick='', chan='', db=None, say=None, input=None):
         t, d=evemisc.sectostr(time.time(), qEnd)
         msg = "%s: Skill in queue: %s (finish in %s, %s)" % (charName.title(), snk, t, d)
         say(msg)
-    except RuntimeError as e:
-        return "Error: ", e.message
+    except (RuntimeError, ssl.SSLError) as e:
+        return "Error: " + e.message
 
 @hook.command(autohelp=False)
 def market(inp, nick='', chan='', db=None, say=None, input=None):
@@ -210,8 +211,8 @@ def market(inp, nick='', chan='', db=None, say=None, input=None):
                     else:
                         msg = "[Sell %d/%d unit of %s for %.2f ISK] %s" % (currentVol, startVol, name, price, msg)
             say(msg)
-    except RuntimeError as e:
-        return "Error: ", e.message
+    except (RuntimeError, ssl.SSLError) as e:
+        return "Error: " + e.message
 
 def update_skill(en, db, create=False):
     nick, key, code, char = en
@@ -257,14 +258,15 @@ def notif(inp, nick='', chan='', db=None, say=None, input=None):
         if inp == "init":
             db.execute("drop table if exists EveSurvey")
             db.commit()
-            db.execute("create table if not exists EveSurvey(nick primary key, skill, time, level, character, bool)")
-            db.commit()
             row = db.execute("select nick, keyID, vCode, character from EveKey where 1").fetchall()
             for en in row:
                 n, c =update_skill(en, db, True)
             say("DB Updated")
-    except RuntimeError as e:
-        return "Error: ", e.message
+        if inp == "stop":
+            global alive
+            alive = False
+    except (RuntimeError, ssl.SSLError) as e:
+        return "Error: " + e.message
 
 
 @hook.singlethread
@@ -274,7 +276,9 @@ def alert(inp, nick='', chan='', db=None, say=None, input=None):
     try:
         if inp == "start":
             say("Start skill notifier")
-            while True:
+            global alive
+            alive = True
+            while alive:
                 now = time.time()
                 row = db.execute("select nick, skill, time, level, character, bool from EveSurvey where 1").fetchall()
                 for en in row:
@@ -291,8 +295,8 @@ def alert(inp, nick='', chan='', db=None, say=None, input=None):
                 time.sleep(5)
                 print ("Notifier is alive")
             say("Stopping skill notifier...")
-    except RuntimeError as e:
-        return "Error: ", e.message
+    except (RuntimeError, ssl.SSLError) as e:
+        return "Error: " + e.message
 
 
 #########
@@ -309,7 +313,7 @@ def corpAdd(inp, nick='', chan='', db=None, input=None):
         return """Arguments missing:
         Usage: .corpAdd <KeyID> <vCode> <irc_nick> <Corporation Name>"""
 
-    db_corp_init(db)
+    db_init(db)
 
     key=datas[0]
     vcode=datas[1]
@@ -331,7 +335,7 @@ def corpAdd(inp, nick='', chan='', db=None, input=None):
 def corpDel(inp, nick='', chan='', db=None, say=None, input=None):
     ".corpDel"
 
-    db_corp_init(db)
+    db_init(db)
     db.execute("delete from CorpKey where nick=lower(?)", (nick,))
     db.commit()
     say("Entry %s deleted" % nick)
@@ -339,7 +343,7 @@ def corpDel(inp, nick='', chan='', db=None, say=None, input=None):
 @hook.command(autohelp=False)
 def corp(inp, nick='', chan='', db=None, say=None, input=None):
     ".corp [isk]"
-    db_corp_init(db)
+    db_init(db)
     locale.setlocale(locale.LC_ALL, '')
     # if not inp:
     #     return ".corp isk"
@@ -357,5 +361,5 @@ def corp(inp, nick='', chan='', db=None, say=None, input=None):
             say("%s has %s ISK in Master Wallet." % (corpName.title(), locale.format('%.2f', isk, True)))
         else:
             say("No corporation found.")
-    except RuntimeError as e:
-        return "Error: ", e.message
+    except (RuntimeError, ssl.SSLError) as e:
+        return "Error: " + e.message
