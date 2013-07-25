@@ -16,7 +16,7 @@ if not os.path.exists('config'):
             {
               "server": "irc.rizon.net",
               "nick": "Eve",
-              "channels": ["#chien-rugissant"]
+              "channels": [""]
             }
           },
           "disabled_plugins": [],
