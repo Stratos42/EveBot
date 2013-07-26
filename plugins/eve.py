@@ -4,6 +4,9 @@ import locale
 import time, datetime, ssl
 import evemisc
 
+global alive
+alive = False
+
 def db_init(db):
     db.execute("create table if not exists EveKey(nick primary key, keyID, vCode, character)")
     db.commit()
@@ -12,7 +15,35 @@ def db_init(db):
     db.execute("create table if not exists EveSurvey(nick primary key, skill, time, level, character, bool)")
     db.commit()
 
-global alive
+def update_skill(en, db, create=False):
+    nick, key, code, char = en
+    api, auth, cid = evemisc.get_characterID(key, code, char)
+    skill = auth.char.SkillInTraining(characterID=cid)
+    if cid == None:
+        return 1
+    skill = auth.char.SkillInTraining(characterID=cid)
+    if skill.skillInTraining == 0:
+        pass
+    else:
+        s=api.eve.TypeName(ids=skill.trainingTypeID)
+        skillName=s.types[0].typeName
+        end=skill.trainingEndTime
+        lvl=skill.trainingToLevel
+        if create == True:
+            print "create %s - %s" % (nick, char)
+            db.execute("insert into EveSurvey(nick, skill, time, level, character, bool) values (?,?,?,?,?,0)",
+                       (nick.lower(), skillName, end, lvl, char.lower()))
+        else:
+            row = db.execute("select skill, level from EveSurvey where nick=?", (nick.lower(),)).fetchall()
+            sn, ls = row[0]
+            if skillName == sn and ls == lvl:
+                db.execute("update EveSurvey set skill=?, time=?, level=?, character=?, bool=1 where nick=lower(?)",
+                           (skillName, end, lvl, char.lower(), nick))
+            else:
+                db.execute("update EveSurvey set skill=?, time=?, level=?, character=?, bool=0 where nick=lower(?)",
+                           (skillName, end, lvl, char.lower(), nick))
+        db.commit()
+    return nick, char
 
 ########
 ######## Character
@@ -64,22 +95,26 @@ def isk(inp, nick='', chan='', db=None, say=None, input=None):
     ".isk [Nick]"
     db_init(db)
     locale.setlocale(locale.LC_ALL, '')
+
     if not inp:
         pass
     else:
         nick = inp
+
     try:
         res=evemisc.get_apiID_by_nick(db, nick)
         if res == None:
             return "No entry found. Please use .eveadd"
+
         keyID, vCode, charName = res
         api, auth, cid=evemisc.get_characterID(keyID, vCode, charName)
         if cid == None:
             return "No character found"
+
         wallet = auth.char.AccountBalance(characterID=cid)
         isk = wallet.accounts[0].balance
         if isk:
-            say("%s has %s ISK." % (charName.title(), locale.format('%.2f', isk, True)))
+            say(u"%s has \u0002%s\u000f ISK." % (charName.title(), locale.format('%.2f', isk, True)))
         else:
             say("No character found.")
     except (RuntimeError, ssl.SSLError) as e:
@@ -89,18 +124,22 @@ def isk(inp, nick='', chan='', db=None, say=None, input=None):
 def eta(inp, nick='', chan='', db=None, say=None, input=None):
     ".eta [Nick]"
     db_init(db)
+
     if not inp:
         pass
     else:
         nick = inp
+
     try:
         res=evemisc.get_apiID_by_nick(db, nick)
         if res == None:
             return "No entry found. Please use .eveadd"
+
         keyID, vCode, charName = res
         api, auth, cid=evemisc.get_characterID(keyID, vCode, charName)
         if cid == None:
             return "No character found"
+
         skill = auth.char.SkillInTraining(characterID=cid)
         if skill.skillInTraining == 0:
             say("No skill in training")
@@ -109,7 +148,7 @@ def eta(inp, nick='', chan='', db=None, say=None, input=None):
             s=api.eve.TypeName(ids=skill.trainingTypeID)
             skillName=s.types[0].typeName
             t, d=evemisc.sectostr(time.time(), skill.trainingEndTime)
-            msg = "%s: Currently training '%s' to lvl %d (finish in %s, %s)" \
+            msg = u"\u0002%s\u000f: Currently training \u000308%s\u000f to level \u000308%d\u000f (finish in \u000310%s\u000f, %s)" \
                   % (charName.title(), skillName, skill.trainingToLevel, t, d)
             say(msg)
     except (RuntimeError, ssl.SSLError) as e:
@@ -119,14 +158,17 @@ def eta(inp, nick='', chan='', db=None, say=None, input=None):
 def next(inp, nick='', chan='', db=None, say=None, input=None):
     ".next [Nick]"
     db_init(db)
+
     if not inp:
         pass
     else:
         nick = inp
+
     try:
         res=evemisc.get_apiID_by_nick(db, nick)
         if res == None:
             return "No entry found. Please use .eveadd"
+
         keyID, vCode, charName = res
         api, auth, cid=evemisc.get_characterID(keyID, vCode, charName)
         if cid == None:
@@ -136,7 +178,7 @@ def next(inp, nick='', chan='', db=None, say=None, input=None):
             s=api.eve.TypeName(ids=queue[1].typeID)
             skillName=s.types[0].typeName
             t, d=evemisc.sectostr(time.time(), queue[1].endTime)
-            msg = "%s: Next skill in queue '%s' to lvl %d (finish in %s, %s)" \
+            msg = u"\u0002%s\u000f: Next skill in queue \u000308%s\u000f to level \u000308%d\u000f (finish in \u000310%s\u000f, %s)" \
                   % (charName.title(), skillName, queue[0].level, t, d)
             say(msg)
         else:
@@ -148,18 +190,22 @@ def next(inp, nick='', chan='', db=None, say=None, input=None):
 def queue(inp, nick='', chan='', db=None, say=None, input=None):
     ".queue [nick]"
     db_init(db)
+
     if not inp:
         pass
     else:
         nick = inp
+
     try:
         res=evemisc.get_apiID_by_nick(db, nick)
         if res == None:
             return "No entry found. Please use .eveadd"
+
         keyID, vCode, charName = res
         api, auth, cid=evemisc.get_characterID(keyID, vCode, charName)
         if cid == None:
             return "No character found"
+
         queue = auth.char.SkillQueue(characterID=cid).skillqueue
         snk=""
         qEnd=0
@@ -167,13 +213,13 @@ def queue(inp, nick='', chan='', db=None, say=None, input=None):
             for sk in queue:
                 s=api.eve.TypeName(ids=sk.typeID)
                 skillName=s.types[0].typeName
-                snk = snk + "[" + skillName + " lvl. " + str(sk.level) + "] "
+                snk = snk + u"[\u000308" + skillName + u"\u000f lvl. \u000308" + str(sk.level) + u"\u000f] "
                 qEnd = sk.endTime
         else:
             return "No skill in queue."
         print snk
         t, d=evemisc.sectostr(time.time(), qEnd)
-        msg = "%s: Skill in queue: %s (finish in %s, %s)" % (charName.title(), snk, t, d)
+        msg = u"%s: Skill in queue: %s (finish in \u000310%s\u000f, %s)" % (charName.title(), snk, t, d)
         say(msg)
     except (RuntimeError, ssl.SSLError) as e:
         return "Error: " + e.message
@@ -182,72 +228,51 @@ def queue(inp, nick='', chan='', db=None, say=None, input=None):
 def market(inp, nick='', chan='', db=None, say=None, input=None):
     ".market [Nick]"
     db_init(db)
+
     if not inp:
         pass
     else:
         nick = inp
+
     try:
         res=evemisc.get_apiID_by_nick(db, nick)
         if res == None:
             return "No entry found. Please use .eveadd"
+
         keyID, vCode, charName = res
         api, auth, cid=evemisc.get_characterID(keyID, vCode, charName)
+
         if cid == None:
             return "No character found"
         orders = auth.char.MarketOrders(characterID=cid).orders
+
         if not orders:
             say("No market orders in training")
         else:
             msg=""
+            i = 0
             for order in orders:
                 if order.orderState == 0:
+                    i = i + 1
                     name=evemisc.get_name_from_id(api, order.typeID)
                     price=order.price
                     startVol=order.volEntered
                     currentVol=order.volRemaining
-                    # t, d=evemisc.sectostr(time.time(), skill.trainingEndTime)
                     if order.bid == 1:
-                        msg = "[Buy %d unit of %s for %.2f ISK] %s" % (startVol, name, price, msg)
+                        msg = u"%d: [Buy \u000308%d\u000f unit of \u000310%s\u000f for \u0002%.2f\u000f ISK]" % (i, startVol, name, price)
                     else:
-                        msg = "[Sell %d/%d unit of %s for %.2f ISK] %s" % (currentVol, startVol, name, price, msg)
-            say(msg)
+                        msg = u"%d: [Sell \u000308%d\u000f/\u000303%d\u000f unit of \u000310%s\u000f for \u0002%.2f\u000f ISK]" % (i, currentVol, startVol, name, price)
+                    say(msg)
+            if msg == "":
+                say("No market orders in training")
     except (RuntimeError, ssl.SSLError) as e:
         return "Error: " + e.message
-
-def update_skill(en, db, create=False):
-    nick, key, code, char = en
-    api, auth, cid = evemisc.get_characterID(key, code, char)
-    skill = auth.char.SkillInTraining(characterID=cid)
-    if cid == None:
-        return 1
-    skill = auth.char.SkillInTraining(characterID=cid)
-    if skill.skillInTraining == 0:
-        pass
-    else:
-        s=api.eve.TypeName(ids=skill.trainingTypeID)
-        skillName=s.types[0].typeName
-        end=skill.trainingEndTime
-        lvl=skill.trainingToLevel
-        if create == True:
-            print "create %s - %s" % (nick, char)
-            db.execute("insert into EveSurvey(nick, skill, time, level, character, bool) values (?,?,?,?,?,0)",
-                       (nick.lower(), skillName, end, lvl, char.lower()))
-        else:
-            row = db.execute("select skill, level from EveSurvey where nick=?", (nick.lower(),)).fetchall()
-            sn, ls = row[0]
-            if skillName == sn and ls == lvl:
-                db.execute("update EveSurvey set skill=?, time=?, level=?, character=?, bool=1 where nick=lower(?)",
-                           (skillName, end, lvl, char.lower(), nick))
-            else:
-                db.execute("update EveSurvey set skill=?, time=?, level=?, character=?, bool=0 where nick=lower(?)",
-                           (skillName, end, lvl, char.lower(), nick))
-        db.commit()
-    return nick, char
 
 @hook.command(autohelp=False)
 def notif(inp, nick='', chan='', db=None, say=None, input=None):
     db_init(db)
     try:
+        global alive
         if inp == "check":
             now = time.time()
             row = db.execute("select nick, skill, time, level, character from EveSurvey where 1").fetchall()
@@ -263,8 +288,12 @@ def notif(inp, nick='', chan='', db=None, say=None, input=None):
                 n, c =update_skill(en, db, True)
             say("DB Updated")
         if inp == "stop":
-            global alive
             alive = False
+        if inp == "status":
+            if alive == False:
+                say(u"Notifier daemon [\u000304stopped\u000f]")
+            else:
+                say(u"Notifier daemon [\u000309started\u000f]")
     except (RuntimeError, ssl.SSLError) as e:
         return "Error: " + e.message
 
@@ -273,10 +302,11 @@ def notif(inp, nick='', chan='', db=None, say=None, input=None):
 @hook.command(autohelp=False)
 def alert(inp, nick='', chan='', db=None, say=None, input=None):
     db_init(db)
+
     try:
+        global alive
         if inp == "start":
             say("Start skill notifier")
-            global alive
             alive = True
             while alive:
                 now = time.time()
@@ -285,7 +315,7 @@ def alert(inp, nick='', chan='', db=None, say=None, input=None):
                     n, skill, end, level, character, boo=en
                     if end <= now:
                         t, d=evemisc.sectostr(end, now)
-                        msg = "%s: Your character %s has finished to train '%s' to lvl %d (since %s)" % (n.title(), character.title(), skill, level, t)
+                        msg = "%s: Your character \u002%s\u000f has finished to train \u000308%s\u000f to level \u000308%d\u000f (since \u000310%s\u000f)" % (n.title(), character.title(), skill, level, t)
                         if boo == 0:
                             say(msg)
                         msg=None
@@ -293,7 +323,6 @@ def alert(inp, nick='', chan='', db=None, say=None, input=None):
                         update_skill(row[0], db)
                         break
                 time.sleep(5)
-                print ("Notifier is alive")
             say("Stopping skill notifier...")
     except (RuntimeError, ssl.SSLError) as e:
         return "Error: " + e.message
