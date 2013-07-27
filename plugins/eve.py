@@ -283,6 +283,8 @@ def notif(inp, nick='', chan='', db=None, say=None, input=None):
         if inp == "init":
             db.execute("drop table if exists EveSurvey")
             db.commit()
+            db.execute("create table if not exists EveSurvey(nick primary key, skill, time, level, character, bool)")
+            db.commit()
             row = db.execute("select nick, keyID, vCode, character from EveKey where 1").fetchall()
             for en in row:
                 n, c =update_skill(en, db, True)
@@ -315,7 +317,7 @@ def alert(inp, nick='', chan='', db=None, say=None, input=None):
                     n, skill, end, level, character, boo=en
                     if end <= now:
                         t, d=evemisc.sectostr(end, now)
-                        msg = "%s: Your character \u002%s\u000f has finished to train \u000308%s\u000f to level \u000308%d\u000f (since \u000310%s\u000f)" % (n.title(), character.title(), skill, level, t)
+                        msg = u"%s: Your character \u0002%s\u000f has finished to train \u000308%s\u000f to level \u000308%d\u000f (since \u000310%s\u000f)" % (n.title(), character.title(), skill, level, t)
                         if boo == 0:
                             say(msg)
                         msg=None
