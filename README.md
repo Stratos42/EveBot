@@ -30,11 +30,15 @@ Only one character by nick is allowed.
   * Display the skills in your skills queue.
 * .market [nick]
   * Display the orders active of your character
-* .notif init|check
-  * init: Initialize the DB for notification skill
-  * check: Debug for admin
+
+### Notifier
 * .alert start
   * Start the notifier daemon.
+* .notif stop|init|check|status
+  * init: Initialize the DB for notification skill
+  * check: Debug for admin
+  * stop: Stop the notifier daemon
+  * status: Give the status of the notifier daemon
 
 ### Corporation
 * .corpAdd <KeyID> <vCode> <irc_nick> <Character Name>
