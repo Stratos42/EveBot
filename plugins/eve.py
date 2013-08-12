@@ -358,12 +358,12 @@ def timeout(inp, nick='', chan='', db=None, say=None, input=None):
         accountStatus = auth.account.AccountStatus()
         timeOut = accountStatus.paidUntil
         logonMinutes = accountStatus.logonMinutes
-        playTime = datetime(1, 1, 1) + timedelta(minutes = float(logonMinutes))
+        playTime = datetime.datetime(1, 1, 1) + datetime.timedelta(minutes = float(logonMinutes))
         playTimeStr = (u"(you played %dd %dh %dmn %ds)" % (playTime.day - 1, playTime.hour, playTime.minute, playTime.second))
         now = time.time()
         t, d = evemisc.sectostr(now, timeOut)
         remainingTime = u"\u000310" + t + u"\u000f"
-        if t.index('-'):
+        if t[0] == '-':
             remainingTime = u"\u000304" + t + u"\u000f"
         say(u"%s account expires in %s, on \u000307%s\u000f, %s" % (nick, remainingTime, d, playTimeStr))
     except (RuntimeError, ssl.SSLError) as e:
