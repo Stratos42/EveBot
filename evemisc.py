@@ -51,15 +51,17 @@ def get_name_from_id(api, typeID):
 
 def sectostr(start, end):
     diff = (end - start)
+    n = ""
     if diff < 0:
         diff = diff * (-1)
+        n = "-"
     sec = datetime.timedelta(seconds=diff)
     d = datetime.datetime(1,1,1) + sec
     print "DEBUG: diff=%d" % diff
     if d.day-1 == 0:
-        t =  "%dh %dmn %ds" % (d.hour, d.minute, d.second)
+        t =  n + "%dh %dmn %ds" % (d.hour, d.minute, d.second)
     else:
-        t =  "%dd %dh %dmn %ds" % (d.day-1, d.hour, d.minute, d.second)
+        t =  n + "%dd %dh %dmn %ds" % (d.day-1, d.hour, d.minute, d.second)
     d=time.strftime("%A %X %Z", time.localtime(end))
     return t, d
 

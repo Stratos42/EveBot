@@ -289,6 +289,10 @@ def notif(inp, nick='', chan='', db=None, say=None, input=None):
             for en in row:
                 n, c =update_skill(en, db, True)
             say("DB Updated")
+        if inp == "up":
+            row = db.execute("select nick, keyID, vCode, character from EveKey where nick=?", (nick.lower(), )).fetchall()
+            n, c =update_skill(row[0], db)
+            say("Notifier DB updated for %s" % nick.title())
         if inp == "stop":
             alive = False
         if inp == "status":
@@ -328,6 +332,45 @@ def alert(inp, nick='', chan='', db=None, say=None, input=None):
             say("Stopping skill notifier...")
     except (RuntimeError, ssl.SSLError) as e:
         return "Error: " + e.message
+
+
+
+@hook.command(autohelp=False)
+def timeout(inp, nick='', chan='', db=None, say=None, input=None):
+    ".timeout [Nick]"
+    db_init(db)
+
+    if not inp:
+        pass
+    else:
+        nick = inp
+
+    try:
+        res=evemisc.get_apiID_by_nick(db, nick)
+        if res == None:
+            return "No entry found. Please use .eveadd"
+
+        keyID, vCode, charName = res
+        api, auth, cid=evemisc.get_characterID(keyID, vCode, charName)
+        if cid == None:
+            return "No character found"
+
+        accountStatus = auth.account.AccountStatus()
+        timeOut = accountStatus.paidUntil
+        playTime = accountStatus.logonMinutes
+
+        if timeOut:
+            now = time.time()
+            t, d = evemisc.sectostr(now, timeOut)
+            tplay, dplay = evemisc.sectostr(playTime, now)
+            say(u"%s account expires in \u000310%s\u000f, on \u000307%s\u000f (you played %s)" % (nick, t, d, tplay))
+        else:
+            say("No character found.")
+
+    except (RuntimeError, ssl.SSLError) as e:
+        return "Error: " + e.message
+
+
 
 
 #########
