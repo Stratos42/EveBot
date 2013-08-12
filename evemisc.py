@@ -62,7 +62,7 @@ def sectostr(start, end):
         t =  n + "%dh %dmn %ds" % (d.hour, d.minute, d.second)
     else:
         t =  n + "%dd %dh %dmn %ds" % (d.day-1, d.hour, d.minute, d.second)
-    d=time.strftime("%A %X %Z", time.localtime(end))
+    d=time.strftime("%A, %B %d %Y - %X", time.localtime(end))
     return t, d
 
 def survey_init(db):
